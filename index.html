@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Canada28Predictor - 加拿大28动态预测模型（演示）</title>
+<style>
+  :root { --bg:#0f172a; --card:#111827; --muted:#94a3b8; --accent:#22c55e; --warn:#f59e0b; --err:#ef4444; --text:#e5e7eb; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; background:var(--bg); color:var(--text); }
+  header { padding:20px; text-align:center; border-bottom:1px solid #1f2937;}
+  header h1 { margin:0; font-size:22px; letter-spacing:.5px;}
+  main { max-width:1100px; margin:18px auto 96px; padding:0 16px; display:grid; grid-template-columns: 1.1fr .9fr; gap:16px; }
+  @media (max-width: 980px) { main { grid-template-columns: 1fr; } }
+  .card { background:var(--card); border:1px solid #1f2937; border-radius:12px; padding:16px; }
+  .card h2 { margin:0 0 12px; font-size:18px; }
+  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  textarea, input, select, button { background:#0b1220; color:var(--text); border:1px solid #1f2937; border-radius:10px; padding:10px 12px; font-size:14px; }
+  textarea { width:100%; height:122px; resize:vertical; }
+  button { cursor:pointer; font-weight:600; }
+  button.primary { background:#0b1f16; border-color:#134e4a; }
+  button.primary:hover { background:#0c2a1c; }
+  button.warn { background:#1f1307; border-color:#7c2d12; }
+  .pill { display:inline-block; padding:4px 10px; border-radius:999px; font-size:12px; border:1px solid #1f2937; color:var(--muted); }
+  .muted { color:var(--muted); }
+  .ok { color:var(--accent); }
+  .bad { color:var(--err); }
+  .warnC { color:var(--warn); }
+  .grid2 { display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
+  .metric { background:#0b1220; border:1px dashed #1f2937; border-radius:10px; padding:10px; }
+  .metric b { font-size:18px; }
+  .progress { height:10px; background:#0b1220; border-radius:999px; border:1px solid #1f2937; overflow:hidden; }
+  .progress > div { height:100%; background:linear-gradient(90deg, #22c55e, #06b6d4); width:0%; transition: width .3s ease; }
+  table { width:100%; border-collapse: collapse; }
+  th, td { border-bottom:1px solid #1f2937; padding:8px 6px; text-align:left; font-size:13px; }
+  tr:hover td { background:#0b1220; }
+  code.inline { background:#0b1220; border:1px solid #1f2937; padding:2px 6px; border-radius:6px; }
+  footer { position:fixed; bottom:0; left:0; right:0; background:#0b1220; border-top:1px solid #1f2937; padding:10px 16px; text-align:center; }
+</style>
+</head>
+<body>
+  <header>
+    <h1>Canada28Predictor（Logistic 多分类 · 12维 one‑hot · 动态迭代 & 精确“每10新期删10老期”滑窗）</h1>
+    <div class="muted" style="margin-top:6px;">初始化：<code class="inline">new Canada28Predictor({ slideEvery: 10, lr: 0.05, epochs: 20 })</code></div>
+  </header>
+
+  <main>
+    <!-- 左列：数据与操作 -->
+    <section class="card">
+      <h2>① 初始化 20 期数据</h2>
+      <div class="muted" style="margin-bottom:8px;">输入 <b>恰好 20 个</b> 标签（取值 0~3），可用逗号或空格分隔。</div>
+      <textarea id="initialInput" placeholder="例如：0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3"></textarea>
+      <div class="row" style="margin-top:8px;">
+        <button id="btnLoad" class="primary">加载初始 20 期并训练</button>
+        <span id="loadMsg" class="pill">未加载</span>
+      </div>
+
+      <hr style="border:none; border-top:1px solid #1f2937; margin:16px 0;" />
+
+      <h2>② 预测与更新</h2>
+      <div class="row" style="gap:10px;">
+        <button id="btnPredict" class="primary">预测下一期</button>
+        <span id="predMsg" class="pill">尚未预测</span>
+      </div>
+      <div id="predPanel" style="margin-top:12px; display:none;">
+        <div class="grid2">
+          <div class="metric">
+            <div class="muted">Top1（最高概率）</div>
+            <div><b id="top1Label">-</b> · 概率 <b id="top1Prob">-</b></div>
+            <div class="progress" style="margin-top:8px;"><div id="top1Bar"></div></div>
+          </div>
+          <div class="metric">
+            <div class="muted">Top3</div>
+            <div id="top3List">-</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row" style="margin-top:12px;">
+        <label for="actualSelect">实际结果：</label>
+        <select id="actualSelect">
+          <option value="0">0（小双）</option>
+          <option value="1">1（小单）</option>
+          <option value="2">2（大单）</option>
+          <option value="3">3（大双）</option>
+        </select>
+        <button id="btnUpdate" class="warn">录入实际值并更新模型</button>
+        <span id="updMsg" class="pill">等待更新</span>
+      </div>
+
+      <div style="margin-top:14px;" class="muted" id="statusLine">数据长度：0 | 最近3期：-</div>
+
+      <hr style="border:none; border-top:1px solid #1f2937; margin:16px 0;" />
+
+      <h2>③ 历史记录</h2>
+      <div class="muted" style="margin-bottom:6px;">每次 <b>“预测 → 录入实际值并更新”</b> 后追加一行，计算 Top1 / Top3 覆盖与 LogLoss。</div>
+      <div style="max-height:280px; overflow:auto; border:1px dashed #1f2937; border-radius:10px;">
+        <table id="histTable">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>最近3期</th>
+              <th>预测Top1</th>
+              <th>Top3</th>
+              <th>实际</th>
+              <th>命中Top1</th>
+              <th>命中Top3</th>
+              <th>LogLoss</th>
+              <th>窗口长度</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 右列：指标 -->
+    <section class="card">
+      <h2>在线评估指标</h2>
+      <div class="grid2">
+        <div class="metric">
+          <div class="muted">Top1 命中率</div>
+          <div><b id="mTop1">0.0%</b> <span class="muted">（累计）</span></div>
+          <div class="progress" style="margin-top:8px;"><div id="mTop1Bar"></div></div>
+        </div>
+        <div class="metric">
+          <div class="muted">Top3 覆盖率</div>
+          <div><b id="mTop3">0.0%</b> <span class="muted">（累计）</span></div>
+          <div class="progress" style="margin-top:8px;"><div id="mTop3Bar"></div></div>
+        </div>
+      </div>
+      <div class="grid2" style="margin-top:10px;">
+        <div class="metric">
+          <div class="muted">平均 LogLoss（越低越好）</div>
+          <div><b id="mLoss">-</b></div>
+        </div>
+        <div class="metric">
+          <div class="muted">累计回合数</div>
+          <div><b id="mCount">0</b></div>
+        </div>
+      </div>
+
+      <hr style="border:none; border-top:1px solid #1f2937; margin:16px 0;" />
+
+      <h2>控制台随机演示</h2>
+      <div class="muted">
+        页面加载后自动运行：<b>随机初始 20 期 + 连续 10 次更新</b>，并在控制台输出总覆盖率与滑窗行为。
+        <div style="margin-top:8px;"><code class="inline">打开开发者工具 Console 查看</code></div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    ⚠️ 仅模拟，别真赌
+  </footer>
+
+<script>
+// 工具：伪随机数生成器（LCG）
+class RNG {
+  constructor(seed = 123456789) { this.seed = seed >>> 0; }
+  next() { this.seed = (1664525 * this.seed + 1013904223) >>> 0; return this.seed / 0x100000000; }
+  randint(n) { return Math.floor(this.next() * n); }
+}
+
+// Canada28Predictor 类（核心）
+class Canada28Predictor {
+  constructor(opts = {}) {
+    this.slideEvery = Number.isInteger(opts.slideEvery) ? opts.slideEvery : 10; // 必须=10以满足需求
+    this.lr = typeof opts.lr === 'number' ? opts.lr : 0.05;
+    this.epochs = Number.isInteger(opts.epochs) ? opts.epochs : 20;
+    this.lambdaL2 = typeof opts.lambdaL2 === 'number' ? opts.lambdaL2 : 1e-3;
+
+    this.K = 4;      // 类别数
+    this.D = 12;     // 特征维度（3 × 4）
+    this.data = [];  // 标签序列（0..3）
+    this.history = []; // 评估历史（供外部使用）
+
+    // 参数：W ∈ R^{D×K}, b ∈ R^{K}
+    this.W = Array.from({ length: this.D }, () => Array(this.K).fill(0));
+    this.b = Array(this.K).fill(0);
+  }
+
+  loadInitial(labels = []) {
+    if (!Array.isArray(labels)) throw new Error('labels 必须是数组');
+    if (labels.length !== 20) throw new Error('初始数据必须恰好 20 期');
+    for (const v of labels) {
+      if (![0,1,2,3].includes(Number(v))) throw new Error('标签值必须在 0~3');
+    }
+    this.data = labels.map(v => Number(v));
+    this.train();
+  }
+
+  predictNext() {
+    const probs = this._probsFromLast3();
+    let argmax = 0, mx = probs[0];
+    for (let k = 1; k < this.K; k++) {
+      if (probs[k] > mx) { mx = probs[k]; argmax = k; }
+    }
+    return argmax;
+  }
+
+  getTop3() {
+    const probs = this._probsFromLast3();
+    return this._topKIndices(probs, 3);
+  }
+
+  getProbs() {
+    return this._probsFromLast3();
+  }
+
+  updateAfterPredict(actual) {
+    const a = Number(actual);
+    if (![0,1,2,3].includes(a)) throw new Error('actual 必须是 0~3');
+
+    this.data.push(a);
+
+    // 精确滑窗：到 30/40/50… 时，删前 10
+    const totalLen = this.data.length;
+    if (totalLen >= 30 && totalLen % this.slideEvery === 0) {
+      this.data = this.data.slice(10);
+      console.log(`滑窗触发：删去最早10期 → 新长度 ${this.data.length}`);
+    }
+
+    this.train();
+    // 更新 UI 状态
+    showStatus();
+
+    return true;
+  }
+
+  // 训练方法
+  train() {
+    const n = this.data.length;
+    if (n < 4) return false;
+
+    const { X, Y_idx } = this._buildDataset();
+    const N = X.length;
+    if (N === 0) return false;
+
+    for (let epoch = 0; epoch < this.epochs; epoch++) {
+      const P = X.map(x => this._softmax(this._addVec(this._matVec(this.W, x), this.b)));
+
+      const gradW = Array.from({ length: this.D }, () => Array(this.K).fill(0));
+      const gradb = Array(this.K).fill(0);
+
+      for (let i = 0; i < N; i++) {
+        for (let k = 0; k < this.K; k++) {
+          const yk = (Y_idx[i] === k) ? 1 : 0;
+          const diff = P[i][k] - yk;
+          gradb[k] += diff;
+          const xi = X[i];
+          for (let d = 0; d < this.D; d++) {
+            gradW[d][k] += diff * xi[d];
+          }
+        }
+      }
+
+      // 平均 + L2 正则
+      for (let k = 0; k < this.K; k++) {
+        gradb[k] /= N;
+        for (let d = 0; d < this.D; d++) {
+          gradW[d][k] = gradW[d][k] / N + this.lambdaL2 * this.W[d][k];
+        }
+      }
+
+      // 梯度下降更新
+      for (let k = 0; k < this.K; k++) {
+        this.b[k] -= this.lr * gradb[k];
+        for (let d = 0; d < this.D; d++) {
+          this.W[d][k] -= this.lr * gradW[d][k];
+        }
+      }
+    }
+    return true;
+  }
+
+  // 工具方法
+  _buildDataset() {
+    const X = [];
+    const Y_idx = [];
+    for (let t = 3; t < this.data.length; t++) {
+      const x = this._featurizeTriplet(this.data[t-3], this.data[t-2], this.data[t-1]);
+      X.push(x);
+      Y_idx.push(this.data[t]);
+    }
+    return { X, Y_idx };
+  }
+
+  _featurizeTriplet(a, b, c) {
+    const f = [];
+    this._pushOneHot4(f, a);
+    this._pushOneHot4(f, b);
+    this._pushOneHot4(f, c);
+    return f;
+  }
+
+  _pushOneHot4(arr, v) {
+    for (let k = 0; k < 4; k++) arr.push(k === Number(v) ? 1 : 0);
+  }
+
+  _probsFromLast3() {
+    if (this.data.length < 3) return Array(this.K).fill(1 / this.K);
+    const n = this.data.length;
+    const x = this._featurizeTriplet(this.data[n-3], this.data[n-2], this.data[n-1]);
+    const logits = this._addVec(this._matVec(this.W, x), this.b);
+    return this._softmax(logits);
+  }
+
+  _matVec(M, v) {
+    const r = new Array(M[0].length).fill(0);
+    for (let k = 0; k < M[0].length; k++) {
+      let s = 0;
+      for (let d = 0; d < M.length; d++) s += M[d][k] * v[d];
+      r[k] = s;
+    }
+    return r;
+  }
+
+  _addVec(a, b) {
+    const r = new Array(a.length);
+    for (let i = 0; i < a.length; i++) r[i] = a[i] + b[i];
+    return r;
+  }
+
+  _softmax(z) {
+    let m = z[0]; for (let i = 1; i < z.length; i++) if (z[i] > m) m = z[i];
+    const exps = z.map(v => Math.exp(v - m));
+    const s = exps.reduce((p,c) => p + c, 0);
+    return exps.map(v => v / s);
+  }
+
+  _topKIndices(arr, k) {
+    const idx = arr.map((v,i) => [v,i]).sort((a,b) => b[0] - a[0]).slice(0, k).map(p => p[1]);
+    return idx;
+  }
+}
+
+// UI 更新方法
+function showStatus() {
+  const len = predictor.data.length;
+  const last3 = len >= 3 ? [predictor.data[len-3], predictor.data[len-2], predictor.data[len-1]].join(',') : '-';
+  els.statusLine.textContent = `数据长度：${len} | 最近3期：${last3}`;
+}
+
+// UI 交互逻辑
+const predictor = new Canada28Predictor({ slideEvery: 10, lr: 0.05, epochs: 20, lambdaL2: 1e-3 });
+let pending = null;
+
+const el = sel => document.querySelector(sel);
+const els = {
+  initialInput: el('#initialInput'),
+  btnLoad: el('#btnLoad'),
+  loadMsg: el('#loadMsg'),
+  btnPredict: el('#btnPredict'),
+  predMsg: el('#predMsg'),
+  predPanel: el('#predPanel'),
+  top1Label: el('#top1Label'),
+  top1Prob: el('#top1Prob'),
+  top1Bar: el('#top1Bar'),
+  top3List: el('#top3List'),
+  actualSelect: el('#actualSelect'),
+  btnUpdate: el('#btnUpdate'),
+  updMsg: el('#updMsg'),
+  histBody: document.querySelector('#histTable tbody'),
+  statusLine: el('#statusLine'),
+  mTop1: el('#mTop1'), mTop1Bar: el('#mTop1Bar'),
+  mTop3: el('#mTop3'), mTop3Bar: el('#mTop3Bar'),
+  mLoss: el('#mLoss'), mCount: el('#mCount'),
+};
+
+function parseInitial(text) {
+  const arr = text.split(/[\s,]+/).map(s => s.trim()).filter(Boolean).map(Number);
+  return arr;
+}
+
+function fmtPct(x) { return (x * 100).toFixed(1) + '%'; }
+function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+function probsToTop3HTML(probs) {
+  const idx = probs.map((p,i)=>[p,i]).sort((a,b)=>b[0]-a[0]).slice(0,3);
+  return idx.map(([p,i],r) => `#${r+1}: <b>${i}</b>（${fmtPct(p)}）`).join(' &nbsp; ');
+}
+
+function updateMetricsView() {
+  const N = predictor.history.length;
+  els.mCount.textContent = N.toString();
+  if (N === 0) {
+    els.mTop1.textContent = '0.0%'; els.mTop1Bar.style.width = '0%';
+    els.mTop3.textContent = '0.0%'; els.mTop3Bar.style.width = '0%';
+    els.mLoss.textContent = '-';
+    return;
+  }
+  const top1 = predictor.history.filter(h => h.hit1).length / N;
+  const top3 = predictor.history.filter(h => h.hit3).length / N;
+  const loss = predictor.history.reduce((s,h)=>s+h.logLoss,0)/N;
+  els.mTop1.textContent = fmtPct(top1); els.mTop1Bar.style.width = (top1*100).toFixed(1)+'%';
+  els.mTop3.textContent = fmtPct(top3); els.mTop3Bar.style.width = (top3*100).toFixed(1)+'%';
+  els.mLoss.textContent = loss.toFixed(4);
+}
+
+function appendHistoryRow(rec) {
+  const tr = document.createElement('tr');
+  const td = (t) => { const x = document.createElement('td'); x.innerHTML = t; return x; };
+  tr.appendChild(td(rec.step));
+  tr.appendChild(td(rec.last3.join(',')));
+  tr.appendChild(td(`${rec.top1}（${fmtPct(rec.probs[rec.top1])}）`));
+  const t3 = predictor._topKIndices(rec.probs, 3);
+  tr.appendChild(td(`${t3[0]},${t3[1]},${t3[2]}`));
+  tr.appendChild(td(String(rec.actual)));
+  tr.appendChild(td(rec.hit1 ? '<span class="ok">✓</span>' : '<span class="bad">✗</span>'));
+  tr.appendChild(td(rec.hit3 ? '<span class="ok">✓</span>' : '<span class="bad">✗</span>'));
+  tr.appendChild(td(rec.logLoss.toFixed(4)));
+  tr.appendChild(td(String(rec.windowLen)));
+  els.histBody.appendChild(tr);
+}
+
+els.btnLoad.addEventListener('click', () => {
+  try {
+    const arr = parseInitial(els.initialInput.value);
+    if (arr.length !== 20) throw new Error('需要恰好 20 个数值');
+    if (!arr.every(v => [0,1,2,3].includes(v))) throw new Error('全部标签必须在 0~3');
+    predictor.loadInitial(arr);
+    pending = null;
+    els.loadMsg.textContent = '已加载并训练';
+    els.predMsg.textContent = '可预测';
+    els.updMsg.textContent = '等待更新';
+    els.predPanel.style.display = 'none';
+    els.histBody.innerHTML = '';
+    predictor.history = [];
+    updateMetricsView();
+    showStatus();
+  } catch (e) {
+    els.loadMsg.textContent = `错误：${e.message}`;
+  }
+});
+
+els.btnPredict.addEventListener('click', () => {
+  try {
+    const probs = predictor.getProbs();
+    const top1 = predictor.predictNext();
+    const top3 = predictor.getTop3();
+    const len = predictor.data.length;
+    const last3 = len >= 3 ? [predictor.data[len-3], predictor.data[len-2], predictor.data[len-1]] : [];
+    pending = { probs, top1, top3, last3 };
+
+    els.top1Label.textContent = String(top1);
+    els.top1Prob.textContent = fmtPct(probs[top1]);
+    els.top1Bar.style.width = (clamp01(probs[top1])*100).toFixed(1) + '%';
+    els.top3List.innerHTML = probsToTop3HTML(probs);
+    els.predPanel.style.display = 'block';
+    els.predMsg.textContent = '已输出预测';
+    showStatus();
+  } catch (e) {
+    els.predMsg.textContent = `错误：${e.message}`;
+  }
+});
+
+els.btnUpdate.addEventListener('click', () => {
+  try {
+    const actual = Number(els.actualSelect.value);
+    const lenBefore = predictor.data.length;
+
+    if (!pending) {
+      const probs = predictor.getProbs();
+      const top1 = predictor._topKIndices(probs,1)[0];
+      const last3 = lenBefore >= 3 ? [predictor.data[lenBefore-3], predictor.data[lenBefore-2], predictor.data[lenBefore-1]] : [];
+      pending = { probs, top1, top3: predictor._topKIndices(probs,3), last3 };
+    }
+
+    const pAct = Math.max(1e-12, pending.probs[actual]);
+    const rec = {
+      step: predictor.history.length + 1,
+      last3: pending.last3,
+      probs: pending.probs.slice(),
+      top1: pending.top1,
+      actual,
+      hit1: pending.top1 === actual,
+      hit3: pending.top3.includes(actual),
+      logLoss: -Math.log(pAct),
+      windowLen: null
+    };
+
+    predictor.updateAfterPredict(actual);
+    rec.windowLen = predictor.data.length;
+
+    predictor.history.push(rec);
+    appendHistoryRow(rec);
+    updateMetricsView();
+    els.updMsg.textContent = '已更新并重训';
+    els.predMsg.textContent = '可再次预测';
+    pending = null;
+    showStatus();
+  } catch (e) {
+    els.updMsg.textContent = `错误：${e.message}`;
+  }
+});
+
+// 控制台：随机演示
+(function runConsoleDemo(){
+  console.log('%c[演示] 随机初始20期 + 连续10次更新（含精确滑窗日志）','color:#22c55e;font-weight:bold;');
+  const rng = new RNG(20251013);
+  const demoPred = new Canada28Predictor({ slideEvery: 10, lr: 0.05, epochs: 20, lambdaL2: 1e-3 });
+
+  const init = Array.from({length:20}, () => rng.randint(4));
+  demoPred.loadInitial(init);
+
+  let hits1 = 0, hits3 = 0, lossSum = 0;
+  for (let t = 1; t <= 10; t++) {
+    const probs = demoPred.getProbs();
+    const top1 = demoPred._topKIndices(probs,1)[0];
+    const top3 = demoPred._topKIndices(probs,3);
+    const actual = rng.randint(4);
+    if (top1 === actual) hits1++;
+    if (top3.includes(actual)) hits3++;
+    lossSum += -Math.log(Math.max(1e-12, probs[actual]));
+
+    const before = demoPred.data.length;
+    demoPred.updateAfterPredict(actual);
+    const after = demoPred.data.length;
+
+    console.log(`回合 ${t}: len ${before} → ${after} | 预测Top1=${top1} 实际=${actual} | 命中Top1=${top1===actual} Top3=${top3.includes(actual)}`);
+  }
+  console.log(`总回合: 10 | Top1命中率=${(hits1/10*100).toFixed(1)}% | Top3覆盖率=${(hits3/10*100).toFixed(1)}% | 平均LogLoss=${(lossSum/10).toFixed(4)}`);
+})();
+
+// 初始一些便捷填充：提供一组示例 20 期
+(function seedTextarea(){
+  const demo = Array.from({length:20}, (_,i)=> (i%4)).join(',');
+  els.initialInput.value = demo;
+})();
+showStatus();
+</script>
+</body>
+</html>
