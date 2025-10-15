@@ -5,43 +5,211 @@
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Canada28Predictor - 加拿大28动态预测模型（演示）</title>
 <style>
-  :root { --bg:#0f172a; --card:#111827; --muted:#94a3b8; --accent:#22c55e; --warn:#f59e0b; --err:#ef4444; --text:#e5e7eb; }
+  :root { --bg:#0f172a; --card:#111827; --muted:#94a3b8; --accent:#22c55e; --accent2:#06b6d4; --warn:#f59e0b; --err:#ef4444; --text:#e5e7eb; }
   * { box-sizing: border-box; }
-  body { margin:0; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; background:var(--bg); color:var(--text); }
-  header { padding:20px; text-align:center; border-bottom:1px solid #1f2937;}
-  header h1 { margin:0; font-size:22px; letter-spacing:.5px;}
-  main { max-width:1100px; margin:18px auto 96px; padding:0 16px; display:grid; grid-template-columns: 1.1fr .9fr; gap:16px; }
+  body {
+    margin:0;
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    background:var(--bg);
+    color:var(--text);
+    min-height:100vh;
+    position:relative;
+    overflow-x:hidden;
+  }
+  body::before,
+  body::after {
+    content:"";
+    position:fixed;
+    inset:-120px;
+    pointer-events:none;
+    z-index:-2;
+    background:radial-gradient(circle at 20% 20%, rgba(34,197,94,0.18), transparent 55%),
+               radial-gradient(circle at 80% 30%, rgba(6,182,212,0.16), transparent 60%),
+               radial-gradient(circle at 50% 85%, rgba(244,114,182,0.12), transparent 65%);
+    animation:pulse-bg 16s ease-in-out infinite alternate;
+  }
+  body::after {
+    z-index:-3;
+    filter:blur(40px);
+    opacity:0.6;
+  }
+  header {
+    padding:26px 20px 22px;
+    text-align:center;
+    border-bottom:1px solid rgba(148,163,184,0.1);
+    position:relative;
+    overflow:hidden;
+    animation:fade-in 0.7s ease;
+  }
+  header::after {
+    content:"";
+    position:absolute;
+    inset:auto 20% 0 20%;
+    height:2px;
+    background:linear-gradient(90deg, transparent, rgba(34,197,94,0.5), rgba(6,182,212,0.5), transparent);
+    opacity:0.4;
+  }
+  header h1 { margin:0; font-size:24px; letter-spacing:.6px; }
+  .hero-subtitle { margin-top:8px; color:var(--muted); font-size:14px; letter-spacing:.2px; }
+  .hero-badge {
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    padding:6px 14px;
+    margin-top:12px;
+    border-radius:999px;
+    background:linear-gradient(120deg, rgba(34,197,94,0.18), rgba(6,182,212,0.18));
+    border:1px solid rgba(34,197,94,0.35);
+    font-size:13px;
+    color:#ccf4dd;
+    letter-spacing:2px;
+    text-transform:uppercase;
+    box-shadow:0 0 16px rgba(34,197,94,0.18);
+    animation:badge-glow 4s ease-in-out infinite;
+  }
+  main { max-width:1100px; margin:26px auto 112px; padding:0 16px; display:grid; grid-template-columns: 1.1fr .9fr; gap:16px; animation:fade-in 0.9s ease 0.1s both; }
   @media (max-width: 980px) { main { grid-template-columns: 1fr; } }
-  .card { background:var(--card); border:1px solid #1f2937; border-radius:12px; padding:16px; }
-  .card h2 { margin:0 0 12px; font-size:18px; }
+  .card {
+    background:rgba(17,24,39,0.86);
+    border:1px solid rgba(148,163,184,0.18);
+    border-radius:16px;
+    padding:18px;
+    box-shadow:0 18px 48px rgba(15,23,42,0.45);
+    position:relative;
+    overflow:hidden;
+    transition:transform .35s ease, box-shadow .35s ease;
+  }
+  .card::before {
+    content:"";
+    position:absolute;
+    inset:0;
+    background:radial-gradient(circle at 20% -10%, rgba(34,197,94,0.08), transparent 55%);
+    opacity:0;
+    transition:opacity .35s ease;
+    pointer-events:none;
+  }
+  .card:hover {
+    transform:translateY(-6px);
+    box-shadow:0 24px 56px rgba(8,47,73,0.45);
+  }
+  .card:hover::before { opacity:1; }
+  .card h2 { margin:0 0 12px; font-size:18px; letter-spacing:.4px; display:flex; align-items:center; gap:8px; }
+  .card h2::before {
+    content:"";
+    width:6px;
+    height:6px;
+    border-radius:50%;
+    background:linear-gradient(120deg, var(--accent), var(--accent2));
+    box-shadow:0 0 12px rgba(34,197,94,0.6);
+  }
   .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
-  textarea, input, select, button { background:#0b1220; color:var(--text); border:1px solid #1f2937; border-radius:10px; padding:10px 12px; font-size:14px; }
+  textarea, input, select, button { background:rgba(11,18,32,0.9); color:var(--text); border:1px solid rgba(148,163,184,0.18); border-radius:12px; padding:10px 12px; font-size:14px; transition:border-color .3s ease, box-shadow .3s ease, transform .3s ease; }
   textarea { width:100%; height:122px; resize:vertical; }
-  button { cursor:pointer; font-weight:600; }
-  button.primary { background:#0b1f16; border-color:#134e4a; }
-  button.primary:hover { background:#0c2a1c; }
-  button.warn { background:#1f1307; border-color:#7c2d12; }
-  .pill { display:inline-block; padding:4px 10px; border-radius:999px; font-size:12px; border:1px solid #1f2937; color:var(--muted); }
+  textarea:focus, input:focus, select:focus { border-color:rgba(34,197,94,0.65); box-shadow:0 0 0 3px rgba(34,197,94,0.15); outline:none; }
+  button { cursor:pointer; font-weight:600; position:relative; overflow:hidden; }
+  button.primary {
+    background:linear-gradient(120deg, rgba(34,197,94,0.4), rgba(6,182,212,0.4));
+    border-color:rgba(34,197,94,0.45);
+    color:#d1fae5;
+    transition:transform .25s ease, box-shadow .25s ease, background-position .45s ease;
+    background-size:220% 220%;
+  }
+  button.primary:hover {
+    transform:translateY(-2px);
+    box-shadow:0 12px 24px rgba(34,197,94,0.28);
+    background-position:80% 20%;
+  }
+  button.warn {
+    background:linear-gradient(120deg, rgba(245,158,11,0.32), rgba(251,191,36,0.28));
+    border-color:rgba(245,158,11,0.5);
+    color:#fde68a;
+  }
+  button.warn:hover {
+    transform:translateY(-2px);
+    box-shadow:0 12px 24px rgba(245,158,11,0.25);
+  }
+  .pill { display:inline-block; padding:4px 10px; border-radius:999px; font-size:12px; border:1px solid rgba(148,163,184,0.22); color:var(--muted); background:rgba(15,23,42,0.7); backdrop-filter:blur(6px); }
   .muted { color:var(--muted); }
   .ok { color:var(--accent); }
   .bad { color:var(--err); }
   .warnC { color:var(--warn); }
   .grid2 { display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
-  .metric { background:#0b1220; border:1px dashed #1f2937; border-radius:10px; padding:10px; }
-  .metric b { font-size:18px; }
-  .progress { height:10px; background:#0b1220; border-radius:999px; border:1px solid #1f2937; overflow:hidden; }
-  .progress > div { height:100%; background:linear-gradient(90deg, #22c55e, #06b6d4); width:0%; transition: width .3s ease; }
+  .metric { background:rgba(11,18,32,0.85); border:1px dashed rgba(148,163,184,0.2); border-radius:12px; padding:12px; position:relative; overflow:hidden; }
+  .metric::after {
+    content:"";
+    position:absolute;
+    inset:0;
+    background:linear-gradient(135deg, rgba(34,197,94,0.12), transparent 70%);
+    opacity:0;
+    transition:opacity .35s ease;
+  }
+  .metric:hover::after { opacity:1; }
+  .metric b { font-size:20px; }
+  .progress { height:12px; background:rgba(11,18,32,0.9); border-radius:999px; border:1px solid rgba(148,163,184,0.18); overflow:hidden; }
+  .progress > div { height:100%; background:linear-gradient(90deg, rgba(34,197,94,0.85), rgba(6,182,212,0.85)); width:0%; transition: width .45s ease-out; box-shadow:0 0 18px rgba(34,197,94,0.45); }
+  #top3List { display:flex; flex-direction:column; gap:6px; font-size:13px; }
+  .top3-item { display:flex; align-items:center; gap:8px; padding:4px 6px; border-radius:8px; background:rgba(15,23,42,0.5); box-shadow:0 4px 14px rgba(8,47,73,0.25); animation:fade-in 0.4s ease; }
+  .top3-item .rank { display:inline-flex; align-items:center; justify-content:center; width:28px; height:20px; border-radius:999px; background:rgba(34,197,94,0.18); color:var(--accent); font-weight:600; font-size:12px; letter-spacing:.3px; }
+  .top3-item b { font-size:16px; }
   table { width:100%; border-collapse: collapse; }
-  th, td { border-bottom:1px solid #1f2937; padding:8px 6px; text-align:left; font-size:13px; }
-  tr:hover td { background:#0b1220; }
-  code.inline { background:#0b1220; border:1px solid #1f2937; padding:2px 6px; border-radius:6px; }
-  footer { position:fixed; bottom:0; left:0; right:0; background:#0b1220; border-top:1px solid #1f2937; padding:10px 16px; text-align:center; }
+  th, td { border-bottom:1px solid rgba(148,163,184,0.18); padding:8px 6px; text-align:left; font-size:13px; }
+  tr { transition:background .3s ease; }
+  tr:hover td { background:rgba(15,23,42,0.65); }
+  code.inline { background:#0b1220; border:1px solid rgba(148,163,184,0.22); padding:2px 6px; border-radius:6px; box-shadow:0 8px 18px rgba(8,47,73,0.4); }
+  footer {
+    position:fixed; bottom:0; left:0; right:0;
+    background:rgba(11,18,32,0.92);
+    border-top:1px solid rgba(148,163,184,0.14);
+    padding:12px 16px;
+    text-align:center;
+    backdrop-filter:blur(6px);
+    animation:fade-in 0.9s ease 0.2s both;
+  }
+  .panel { opacity:0; transform:translateY(12px); pointer-events:none; max-height:0; overflow:hidden; margin-top:0; transition:opacity .35s ease, transform .35s ease, max-height .35s ease, margin-top .35s ease; }
+  .panel.active { opacity:1; transform:translateY(0); pointer-events:auto; max-height:400px; margin-top:12px; }
+  .bg-orb {
+    position:fixed;
+    width:260px; height:260px;
+    border-radius:50%;
+    background:radial-gradient(circle, rgba(34,197,94,0.28), transparent 65%);
+    filter:blur(6px);
+    opacity:0.32;
+    z-index:-1;
+    pointer-events:none;
+    animation:float-orb 18s ease-in-out infinite;
+  }
+  .bg-orb.orb2 { width:320px; height:320px; background:radial-gradient(circle, rgba(6,182,212,0.28), transparent 60%); animation-duration:22s; }
+  .bg-orb.orb3 { width:280px; height:280px; background:radial-gradient(circle, rgba(244,114,182,0.24), transparent 62%); animation-duration:26s; }
+
+  @keyframes fade-in {
+    from { opacity:0; transform:translateY(12px); }
+    to { opacity:1; transform:translateY(0); }
+  }
+  @keyframes pulse-bg {
+    0% { transform:scale(1) translateY(0); opacity:0.6; }
+    50% { transform:scale(1.05) translateY(-6px); opacity:0.75; }
+    100% { transform:scale(1.1) translateY(4px); opacity:0.6; }
+  }
+  @keyframes float-orb {
+    0% { transform:translate3d(-40px, 20px, 0); }
+    50% { transform:translate3d(40px, -10px, 0); }
+    100% { transform:translate3d(-20px, -30px, 0); }
+  }
+  @keyframes badge-glow {
+    0%, 100% { box-shadow:0 0 16px rgba(34,197,94,0.18); opacity:0.85; }
+    50% { box-shadow:0 0 26px rgba(6,182,212,0.32); opacity:1; }
+  }
 </style>
 </head>
 <body>
+  <div class="bg-orb" style="top:12%; left:-120px;"></div>
+  <div class="bg-orb orb2" style="top:62%; right:-140px;"></div>
+  <div class="bg-orb orb3" style="bottom:8%; left:24%;"></div>
   <header>
-    <h1>Canada28Predictor（Logistic 多分类 · 12维 one‑hot · 动态迭代 & 精确“每10新期删10老期”滑窗）</h1>
-    <div class="muted" style="margin-top:6px;">初始化：<code class="inline">new Canada28Predictor({ slideEvery: 10, lr: 0.05, epochs: 20 })</code></div>
+    <div class="hero-badge">笔乐预测器</div>
+    <h1>Canada28Predictor（Logistic 多分类 · 12维 one‑hot · 近端加权训练 + 精确滑窗）</h1>
+    <div class="hero-subtitle">动态预测体验焕新界面，突出最新迭代权重与滑窗节奏。</div>
+    <div class="hero-subtitle">初始化：<code class="inline">new Canada28Predictor({ slideEvery: 10, lr: 0.05, epochs: 20, lrDecay: 0.9, decayFactor: 0.9 })</code></div>
   </header>
 
   <main>
@@ -55,14 +223,14 @@
         <span id="loadMsg" class="pill">未加载</span>
       </div>
 
-      <hr style="border:none; border-top:1px solid #1f2937; margin:16px 0;" />
+      <hr style="border:none; border-top:1px solid rgba(148,163,184,0.22); margin:16px 0;" />
 
       <h2>② 预测与更新</h2>
       <div class="row" style="gap:10px;">
         <button id="btnPredict" class="primary">预测下一期</button>
         <span id="predMsg" class="pill">尚未预测</span>
       </div>
-      <div id="predPanel" style="margin-top:12px; display:none;">
+      <div id="predPanel" class="panel">
         <div class="grid2">
           <div class="metric">
             <div class="muted">Top1（最高概率）</div>
@@ -90,11 +258,11 @@
 
       <div style="margin-top:14px;" class="muted" id="statusLine">数据长度：0 | 最近3期：-</div>
 
-      <hr style="border:none; border-top:1px solid #1f2937; margin:16px 0;" />
+      <hr style="border:none; border-top:1px solid rgba(148,163,184,0.22); margin:16px 0;" />
 
       <h2>③ 历史记录</h2>
-      <div class="muted" style="margin-bottom:6px;">每次 <b>“预测 → 录入实际值并更新”</b> 后追加一行，计算 Top1 / Top3 覆盖与 LogLoss。</div>
-      <div style="max-height:280px; overflow:auto; border:1px dashed #1f2937; border-radius:10px;">
+      <div class="muted" style="margin-bottom:6px;">每次 <b>“预测 → 录入实际值并更新”</b> 后追加一行，计算 Top1 / Top3 覆盖与 LogLoss；窗口列会在触发滑窗时展示 <code class="inline">30→20</code> 等变化。</div>
+      <div style="max-height:280px; overflow:auto; border:1px dashed rgba(148,163,184,0.24); border-radius:12px; backdrop-filter:blur(4px);">
         <table id="histTable">
           <thead>
             <tr>
@@ -140,7 +308,7 @@
         </div>
       </div>
 
-      <hr style="border:none; border-top:1px solid #1f2937; margin:16px 0;" />
+      <hr style="border:none; border-top:1px solid rgba(148,163,184,0.22); margin:16px 0;" />
 
       <h2>控制台随机演示</h2>
       <div class="muted">
@@ -169,6 +337,8 @@ class Canada28Predictor {
     this.lr = typeof opts.lr === 'number' ? opts.lr : 0.05;
     this.epochs = Number.isInteger(opts.epochs) ? opts.epochs : 20;
     this.lambdaL2 = typeof opts.lambdaL2 === 'number' ? opts.lambdaL2 : 1e-3;
+    this.lrDecay = typeof opts.lrDecay === 'number' ? opts.lrDecay : 0.9;
+    this.decayFactor = typeof opts.decayFactor === 'number' ? opts.decayFactor : 0.9;
 
     this.K = 4;      // 类别数
     this.D = 12;     // 特征维度（3 × 4）
@@ -213,19 +383,21 @@ class Canada28Predictor {
     if (![0,1,2,3].includes(a)) throw new Error('actual 必须是 0~3');
 
     this.data.push(a);
+    const lenAfterPush = this.data.length;
 
-    // 精确滑窗：到 30/40/50… 时，删前 10
-    const totalLen = this.data.length;
-    if (totalLen >= 30 && totalLen % this.slideEvery === 0) {
+    // 先在完整窗口上训练
+    this.train();
+
+    let trimmed = false;
+    let afterLen = this.data.length;
+    if (lenAfterPush >= 30 && lenAfterPush % this.slideEvery === 0) {
       this.data = this.data.slice(10);
-      console.log(`滑窗触发：删去最早10期 → 新长度 ${this.data.length}`);
+      afterLen = this.data.length;
+      trimmed = true;
+      console.log(`滑窗触发（先训后删）：${lenAfterPush} → ${afterLen}`);
     }
 
-    this.train();
-    // 更新 UI 状态
-    showStatus();
-
-    return true;
+    return { before: lenAfterPush, after: afterLen, trimmed };
   }
 
   // 训练方法
@@ -233,9 +405,12 @@ class Canada28Predictor {
     const n = this.data.length;
     if (n < 4) return false;
 
-    const { X, Y_idx } = this._buildDataset();
+    const { X, Y_idx, weights } = this._buildDataset();
     const N = X.length;
     if (N === 0) return false;
+
+    const weightSum = weights.reduce((s, w) => s + w, 0) || N;
+    let currentLr = this.lr;
 
     for (let epoch = 0; epoch < this.epochs; epoch++) {
       const P = X.map(x => this._softmax(this._addVec(this._matVec(this.W, x), this.b)));
@@ -244,32 +419,35 @@ class Canada28Predictor {
       const gradb = Array(this.K).fill(0);
 
       for (let i = 0; i < N; i++) {
+        const w = weights[i];
         for (let k = 0; k < this.K; k++) {
           const yk = (Y_idx[i] === k) ? 1 : 0;
           const diff = P[i][k] - yk;
-          gradb[k] += diff;
+          gradb[k] += diff * w;
           const xi = X[i];
           for (let d = 0; d < this.D; d++) {
-            gradW[d][k] += diff * xi[d];
+            gradW[d][k] += diff * xi[d] * w;
           }
         }
       }
 
       // 平均 + L2 正则
       for (let k = 0; k < this.K; k++) {
-        gradb[k] /= N;
+        gradb[k] /= weightSum;
         for (let d = 0; d < this.D; d++) {
-          gradW[d][k] = gradW[d][k] / N + this.lambdaL2 * this.W[d][k];
+          gradW[d][k] = gradW[d][k] / weightSum + this.lambdaL2 * this.W[d][k];
         }
       }
 
       // 梯度下降更新
       for (let k = 0; k < this.K; k++) {
-        this.b[k] -= this.lr * gradb[k];
+        this.b[k] -= currentLr * gradb[k];
         for (let d = 0; d < this.D; d++) {
-          this.W[d][k] -= this.lr * gradW[d][k];
+          this.W[d][k] -= currentLr * gradW[d][k];
         }
       }
+
+      currentLr *= this.lrDecay;
     }
     return true;
   }
@@ -278,12 +456,16 @@ class Canada28Predictor {
   _buildDataset() {
     const X = [];
     const Y_idx = [];
-    for (let t = 3; t < this.data.length; t++) {
+    const weights = [];
+    const total = this.data.length;
+    for (let t = 3; t < total; t++) {
       const x = this._featurizeTriplet(this.data[t-3], this.data[t-2], this.data[t-1]);
       X.push(x);
       Y_idx.push(this.data[t]);
+      const age = (total - 1) - t;
+      weights.push(Math.pow(this.decayFactor, age));
     }
-    return { X, Y_idx };
+    return { X, Y_idx, weights };
   }
 
   _featurizeTriplet(a, b, c) {
@@ -343,8 +525,9 @@ function showStatus() {
 }
 
 // UI 交互逻辑
-const predictor = new Canada28Predictor({ slideEvery: 10, lr: 0.05, epochs: 20, lambdaL2: 1e-3 });
+const predictor = new Canada28Predictor({ slideEvery: 10, lr: 0.05, epochs: 20, lambdaL2: 1e-3, lrDecay: 0.9, decayFactor: 0.9 });
 let pending = null;
+const labelNames = ['小双', '小单', '大单', '大双'];
 
 const el = sel => document.querySelector(sel);
 const els = {
@@ -368,6 +551,47 @@ const els = {
   mLoss: el('#mLoss'), mCount: el('#mCount'),
 };
 
+function animateNumber(el, target, { duration = 650, decimals = 0, suffix = '', fallback = '-' } = {}) {
+  if (target === null || target === undefined || Number.isNaN(target)) {
+    el.textContent = fallback;
+    el.dataset.value = '';
+    return;
+  }
+  const start = Number(el.dataset.value ?? el.textContent.replace(/[^\d.-]/g, '')) || 0;
+  const diff = target - start;
+  const startTime = performance.now();
+  function frame(now) {
+    const t = Math.min(1, (now - startTime) / duration);
+    const eased = t < 1 ? 1 - Math.pow(1 - t, 3) : 1;
+    const value = start + diff * eased;
+    el.textContent = `${value.toFixed(decimals)}${suffix}`;
+    if (t < 1) {
+      requestAnimationFrame(frame);
+    } else {
+      el.dataset.value = String(target);
+    }
+  }
+  requestAnimationFrame(frame);
+}
+
+function animateBar(el, targetPercent, duration = 520) {
+  const start = Number(el.dataset.value ?? parseFloat(el.style.width)) || 0;
+  const diff = targetPercent - start;
+  const startTime = performance.now();
+  function frame(now) {
+    const t = Math.min(1, (now - startTime) / duration);
+    const eased = t < 1 ? 1 - Math.pow(1 - t, 3) : 1;
+    const value = start + diff * eased;
+    el.style.width = `${Math.max(0, Math.min(100, value)).toFixed(1)}%`;
+    if (t < 1) {
+      requestAnimationFrame(frame);
+    } else {
+      el.dataset.value = String(targetPercent);
+    }
+  }
+  requestAnimationFrame(frame);
+}
+
 function parseInitial(text) {
   const arr = text.split(/[\s,]+/).map(s => s.trim()).filter(Boolean).map(Number);
   return arr;
@@ -377,24 +601,29 @@ function fmtPct(x) { return (x * 100).toFixed(1) + '%'; }
 function clamp01(x) { return Math.max(0, Math.min(1, x)); }
 function probsToTop3HTML(probs) {
   const idx = probs.map((p,i)=>[p,i]).sort((a,b)=>b[0]-a[0]).slice(0,3);
-  return idx.map(([p,i],r) => `#${r+1}: <b>${i}</b>（${fmtPct(p)}）`).join(' &nbsp; ');
+  return idx.map(([p,i],r) => `<span class="top3-item"><span class="rank">#${r+1}</span><b>${i}</b><span class="muted">${labelNames[i] ?? '-'}</span><span class="muted">（${fmtPct(p)}）</span></span>`).join('');
 }
 
 function updateMetricsView() {
   const N = predictor.history.length;
-  els.mCount.textContent = N.toString();
+  animateNumber(els.mCount, N, { decimals: 0 });
   if (N === 0) {
-    els.mTop1.textContent = '0.0%'; els.mTop1Bar.style.width = '0%';
-    els.mTop3.textContent = '0.0%'; els.mTop3Bar.style.width = '0%';
+    animateNumber(els.mTop1, 0, { decimals: 1, suffix: '%' });
+    animateNumber(els.mTop3, 0, { decimals: 1, suffix: '%' });
+    animateBar(els.mTop1Bar, 0);
+    animateBar(els.mTop3Bar, 0);
     els.mLoss.textContent = '-';
+    els.mLoss.dataset.value = '';
     return;
   }
   const top1 = predictor.history.filter(h => h.hit1).length / N;
   const top3 = predictor.history.filter(h => h.hit3).length / N;
   const loss = predictor.history.reduce((s,h)=>s+h.logLoss,0)/N;
-  els.mTop1.textContent = fmtPct(top1); els.mTop1Bar.style.width = (top1*100).toFixed(1)+'%';
-  els.mTop3.textContent = fmtPct(top3); els.mTop3Bar.style.width = (top3*100).toFixed(1)+'%';
-  els.mLoss.textContent = loss.toFixed(4);
+  animateNumber(els.mTop1, top1 * 100, { decimals: 1, suffix: '%' });
+  animateNumber(els.mTop3, top3 * 100, { decimals: 1, suffix: '%' });
+  animateBar(els.mTop1Bar, top1 * 100);
+  animateBar(els.mTop3Bar, top3 * 100);
+  animateNumber(els.mLoss, loss, { decimals: 4, suffix: '' });
 }
 
 function appendHistoryRow(rec) {
@@ -402,10 +631,10 @@ function appendHistoryRow(rec) {
   const td = (t) => { const x = document.createElement('td'); x.innerHTML = t; return x; };
   tr.appendChild(td(rec.step));
   tr.appendChild(td(rec.last3.join(',')));
-  tr.appendChild(td(`${rec.top1}（${fmtPct(rec.probs[rec.top1])}）`));
+  tr.appendChild(td(`${rec.top1}（${labelNames[rec.top1] ?? '-'} · ${fmtPct(rec.probs[rec.top1])}）`));
   const t3 = predictor._topKIndices(rec.probs, 3);
-  tr.appendChild(td(`${t3[0]},${t3[1]},${t3[2]}`));
-  tr.appendChild(td(String(rec.actual)));
+  tr.appendChild(td(t3.map(idx => `${idx}(${labelNames[idx] ?? '-'})`).join(' / ')));
+  tr.appendChild(td(`${rec.actual}（${labelNames[rec.actual] ?? '-'}）`));
   tr.appendChild(td(rec.hit1 ? '<span class="ok">✓</span>' : '<span class="bad">✗</span>'));
   tr.appendChild(td(rec.hit3 ? '<span class="ok">✓</span>' : '<span class="bad">✗</span>'));
   tr.appendChild(td(rec.logLoss.toFixed(4)));
@@ -423,7 +652,7 @@ els.btnLoad.addEventListener('click', () => {
     els.loadMsg.textContent = '已加载并训练';
     els.predMsg.textContent = '可预测';
     els.updMsg.textContent = '等待更新';
-    els.predPanel.style.display = 'none';
+    els.predPanel.classList.remove('active');
     els.histBody.innerHTML = '';
     predictor.history = [];
     updateMetricsView();
@@ -442,11 +671,13 @@ els.btnPredict.addEventListener('click', () => {
     const last3 = len >= 3 ? [predictor.data[len-3], predictor.data[len-2], predictor.data[len-1]] : [];
     pending = { probs, top1, top3, last3 };
 
-    els.top1Label.textContent = String(top1);
-    els.top1Prob.textContent = fmtPct(probs[top1]);
-    els.top1Bar.style.width = (clamp01(probs[top1])*100).toFixed(1) + '%';
+    els.top1Label.textContent = `${top1} · ${labelNames[top1] ?? '-'}`;
+    animateNumber(els.top1Prob, clamp01(probs[top1]) * 100, { decimals: 1, suffix: '%' });
+    animateBar(els.top1Bar, clamp01(probs[top1]) * 100);
     els.top3List.innerHTML = probsToTop3HTML(probs);
-    els.predPanel.style.display = 'block';
+    requestAnimationFrame(() => {
+      els.predPanel.classList.add('active');
+    });
     els.predMsg.textContent = '已输出预测';
     showStatus();
   } catch (e) {
@@ -479,14 +710,15 @@ els.btnUpdate.addEventListener('click', () => {
       windowLen: null
     };
 
-    predictor.updateAfterPredict(actual);
-    rec.windowLen = predictor.data.length;
+    const info = predictor.updateAfterPredict(actual);
+    rec.windowLen = info.trimmed ? `${info.before}→${info.after}` : String(info.after);
 
     predictor.history.push(rec);
     appendHistoryRow(rec);
     updateMetricsView();
-    els.updMsg.textContent = '已更新并重训';
+    els.updMsg.textContent = info.trimmed ? `已更新（滑窗 ${rec.windowLen}）` : '已更新并重训';
     els.predMsg.textContent = '可再次预测';
+    els.predPanel.classList.remove('active');
     pending = null;
     showStatus();
   } catch (e) {
@@ -498,7 +730,7 @@ els.btnUpdate.addEventListener('click', () => {
 (function runConsoleDemo(){
   console.log('%c[演示] 随机初始20期 + 连续10次更新（含精确滑窗日志）','color:#22c55e;font-weight:bold;');
   const rng = new RNG(20251013);
-  const demoPred = new Canada28Predictor({ slideEvery: 10, lr: 0.05, epochs: 20, lambdaL2: 1e-3 });
+  const demoPred = new Canada28Predictor({ slideEvery: 10, lr: 0.05, epochs: 20, lambdaL2: 1e-3, lrDecay: 0.9, decayFactor: 0.9 });
 
   const init = Array.from({length:20}, () => rng.randint(4));
   demoPred.loadInitial(init);
@@ -514,10 +746,10 @@ els.btnUpdate.addEventListener('click', () => {
     lossSum += -Math.log(Math.max(1e-12, probs[actual]));
 
     const before = demoPred.data.length;
-    demoPred.updateAfterPredict(actual);
+    const info = demoPred.updateAfterPredict(actual);
     const after = demoPred.data.length;
 
-    console.log(`回合 ${t}: len ${before} → ${after} | 预测Top1=${top1} 实际=${actual} | 命中Top1=${top1===actual} Top3=${top3.includes(actual)}`);
+    console.log(`回合 ${t}: len ${before} → ${after} | 训练窗口 ${info.trimmed ? info.before + '→' + info.after : info.after} | 预测Top1=${top1} 实际=${actual} | 命中Top1=${top1===actual} Top3=${top3.includes(actual)}`);
   }
   console.log(`总回合: 10 | Top1命中率=${(hits1/10*100).toFixed(1)}% | Top3覆盖率=${(hits3/10*100).toFixed(1)}% | 平均LogLoss=${(lossSum/10).toFixed(4)}`);
 })();
